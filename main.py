@@ -7,7 +7,7 @@ col1, col2 = st.columns(2)
 
 ticker = col1.text_input('Ticker: ', 'AAPL')
 oticker = ticker
-odate = col2.text_input('Options Expiration Date: ', '2022-05-13')
+odate = col2.text_input('Options Expiration Date: ', '2022-12-16')
 osymbol = yf.Ticker(oticker)
 
 #options
