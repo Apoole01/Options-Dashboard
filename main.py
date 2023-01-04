@@ -1,16 +1,21 @@
 import streamlit as st
 import yfinance as yf
 import plotly.graph_objects as go
+import yoptions as yo
 
 st.set_page_config(layout="wide")
-col1, col2 = st.columns(2)
+col1, col2, col3, col4 = st.columns(4)
 
 ticker = col1.text_input('Ticker: ', 'AAPL')
 oticker = ticker
 odate = col2.text_input('Options Expiration Date: ', '2023-01-20')
 osymbol = yf.Ticker(oticker)
+divYield = col3.text_input('Dividend Yield: ', '0.0074')
+dyield = float(divYield)
+rate = col4.text_input('Risk Free Rate: ', '0.0434')
+rRate = float(rate)
 
-#options
+#yFinance
 
 opt = osymbol.option_chain(odate)
 
@@ -43,6 +48,24 @@ cpoi = round((ctotaloi / ptotaloi), 2)
 cpvol = round((ctotalvol / ptotalvol), 2)
 cpprem = round((ctotalprem / ptotalprem), 2)
 colors = ['green', 'red']
+
+#yOptions
+
+cChain = yo.get_chain_greeks_date(stock_ticker=ticker, dividend_yield=dyield, option_type='c', risk_free_rate=rRate, expiration_date=odate)
+pChain = yo.get_chain_greeks_date(stock_ticker=ticker, dividend_yield=dyield, option_type='p', risk_free_rate=rRate, expiration_date=odate)
+
+cGamma = cChain['Gamma']
+cTotalGamma = sum(cGamma * coi)
+cDelta = cChain['Delta']
+cTotalDelta = sum(cDelta * coi)
+pGamma = pChain['Gamma']
+pTotalGamma = abs(sum(pGamma * poi))
+pDelta = pChain['Delta']
+pTotalDelta = abs(sum(pDelta * poi))
+
+# print(pDelta.head(60))
+# print(cTotalGamma)
+# print(cChain.head(20).to_string())
 
 #Figures
 
@@ -86,6 +109,32 @@ premiumPie.update_traces(showlegend=False,
 with col3_1:
    st.write(premiumPie)
 
+col1_3, col2_3 = st.columns((1,1))
+
+deltaPie = go.Figure(data=go.Pie(
+    labels=['Call Delta', 'Put Delta'],
+    text=['Call Delta', 'Put Delta'],
+    hoverinfo='skip',
+    values=[cTotalDelta, pTotalDelta],
+    textinfo='text+value+percent'))
+deltaPie.update_layout(width=400)
+deltaPie.update_traces(showlegend=False,
+                     marker=dict(colors=colors))
+with col1_3:
+    st.write(deltaPie)
+
+gammaPie = go.Figure(data=go.Pie(
+    labels=['Call Gamma', 'Put Gamma'],
+    text=['Call Gamma', 'Put Gamma'],
+    hoverinfo='skip',
+    values=[cTotalGamma, pTotalGamma],
+    textinfo='text+value+percent'))
+gammaPie.update_layout(width=400)
+gammaPie.update_traces(showlegend=False,
+                    marker=dict(colors=colors))
+with col2_3:
+    st.write(gammaPie)
+
 col1_2, col2_2 = st.columns((1,1,))
 
 oibar = go.Figure()
@@ -118,35 +167,6 @@ oibar.update_layout(
 with col1_2:
     st.write(oibar)
 
-prembar = go.Figure()
-prembar.add_trace(go.Bar(
-    x=cstrike,
-    y=cpremium,
-    name='Call Premium',
-    marker_color='green'))
-prembar.add_trace(go.Bar(
-    x=pstrike,
-    y=ppremium,
-    name='Put Premium',
-    marker_color='red'))
-prembar.update_layout(
-    title='Option Premium By Strike',
-    xaxis_tickfont_size=14,
-    yaxis=dict(
-        titlefont_size=16,
-        tickfont_size=14,),
-    legend=dict(
-        x=0,
-        y=1.0,
-        bgcolor='rgba(255, 255, 255, 0)',
-        bordercolor='rgba(255, 255, 255, 0)'),
-    barmode='group',
-    bargap=0.15,
-    bargroupgap=0.1,
-    hovermode="x",
-    width=1250)
-st.write(prembar)
-
 volbar = go.Figure()
 volbar.add_trace(go.Bar(
     x=cstrike,
@@ -177,18 +197,105 @@ volbar.update_layout(
 with col2_2:
  st.write(volbar)
 
+prembar = go.Figure()
+prembar.add_trace(go.Bar(
+    x=cstrike,
+    y=cpremium,
+    name='Call Premium',
+    marker_color='green'))
+prembar.add_trace(go.Bar(
+    x=pstrike,
+    y=ppremium,
+    name='Put Premium',
+    marker_color='red'))
+prembar.update_layout(
+    title='Option Premium By Strike',
+    xaxis_tickfont_size=14,
+    yaxis=dict(
+        titlefont_size=16,
+        tickfont_size=14,),
+    legend=dict(
+        x=0,
+        y=1.0,
+        bgcolor='rgba(255, 255, 255, 0)',
+        bordercolor='rgba(255, 255, 255, 0)'),
+    barmode='group',
+    bargap=0.15,
+    bargroupgap=0.1,
+    hovermode="x",
+    width=1250)
+st.write(prembar)
+
+gammabar = go.Figure()
+gammabar.add_trace(go.Bar(
+    x=cstrike,
+    y=(cGamma * coi),
+    name='Call Gamma',
+    marker_color='green'))
+gammabar.add_trace(go.Bar(
+    x=pstrike,
+    y=(pGamma * poi),
+    name='Put Gamma',
+    marker_color='red'))
+gammabar.update_layout(
+    title='Option Gamma By Strike',
+    xaxis_tickfont_size=14,
+    yaxis=dict(
+        titlefont_size=16,
+        tickfont_size=14,),
+    legend=dict(
+        x=0,
+        y=1.0,
+        bgcolor='rgba(255, 255, 255, 0)',
+        bordercolor='rgba(255, 255, 255, 0)'),
+    barmode='group',
+    bargap=0.15,
+    bargroupgap=0.1,
+    hovermode="x",
+    width=1250)
+st.write(gammabar)
+
+deltabar = go.Figure()
+deltabar.add_trace(go.Bar(
+    x=cstrike,
+    y=(cDelta * coi),
+    name='Call Delta',
+    marker_color='green'))
+deltabar.add_trace(go.Bar(
+    x=pstrike,
+    y=abs(pDelta * poi),
+    name='Put Delta',
+    marker_color='red'))
+deltabar.update_layout(
+    title='Option Delta By Strike',
+    xaxis_tickfont_size=14,
+    yaxis=dict(
+        titlefont_size=16,
+        tickfont_size=14,),
+    legend=dict(
+        x=0,
+        y=1.0,
+        bgcolor='rgba(255, 255, 255, 0)',
+        bordercolor='rgba(255, 255, 255, 0)'),
+    barmode='group',
+    bargap=0.15,
+    bargroupgap=0.1,
+    hovermode="x",
+    width=1250)
+st.write(deltabar)
+
 col1_2, col2_2 = st.columns((1,1,))
 
 callChain = go.Figure(data=go.Table(
-    header=dict(values=['Calls Strike', 'Call Volume', 'Call Open Interest', 'Last Price', 'Premium'],
+    header=dict(values=['Calls Strike', 'Call Volume', 'Call Open Interest', 'Last Price', 'Premium', 'Delta', 'Gamma'],
                 fill_color='green',
                 line_color='black',
                 align='center'),
-    cells=dict(values=[cstrike, cvol, coi, clast, cpremium],
+    cells=dict(values=[cstrike, cvol, coi, clast, cpremium, cDelta, cGamma],
                fill_color = 'lightgrey',
                line_color = 'gray',
                font_color = "black",
-               format=[".,d", ",d", ",d", ".d", "$,d"],
+               format=[".,d", ",d", ",d", ".d", "$,d", ".d", ".d"],
                align=['center', 'left'])))
 callChain.update_layout(margin=dict(l=5,r=5,b=10,t=10),
                        width=600)
@@ -196,15 +303,15 @@ with col1_2:
     st.write(callChain)
 
 putChain = go.Figure(data=go.Table(
-    header=dict(values=['Puts Strike', 'Put Volume', 'Put Open Interest', 'Last Price', 'Premium'],
+    header=dict(values=['Puts Strike', 'Put Volume', 'Put Open Interest', 'Last Price', 'Premium', 'Delta', 'Gamma'],
                 fill_color='red',
                 line_color = 'black',
                 align='center'),
-    cells=dict(values=[pstrike, pvol, poi, plast, ppremium],
+    cells=dict(values=[pstrike, pvol, poi, plast, ppremium, pDelta, pGamma],
                fill_color = 'lightgrey',
                line_color = 'grey',
                font_color = "black",
-               format=[".,d", ",d", ",d", ".d", "$,d"],
+               format=[".,d", ",d", ",d", ".d", "$,d", ".d", ".d"],
                align=['center', 'left'])))
 putChain.update_layout(margin=dict(l=5,r=5,b=10,t=10),
                       width=600)
